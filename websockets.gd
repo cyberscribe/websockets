@@ -1,5 +1,7 @@
 extends Node
 
+var debug: bool = false
+
 var config_file: String = "res://addons/websockets/config.cfg"
 var init: bool = false
 var hostname: String = "localhost"
@@ -9,10 +11,11 @@ var client: WebSocketClient
 var server: WebSocketServer
 var server_ready: bool = false
 var client_ready: bool = false
-var pairings: Dictionary = {}
-var debug: bool = false
 
+var pairings: Dictionary = {}
 var opponent_id: int = -1
+var player_number = -1
+signal opponent_left
 
 func _init():
     var config = ConfigFile.new()
@@ -55,7 +58,7 @@ func server_connect():
         __ = get_tree().connect("network_peer_connected", self, "_server_network_peer_connected")
         __ = get_tree().connect("network_peer_disconnected", self, "_server_network_peer_disconnected")
         if get_tree().is_network_server():
-            print(Time.get_datetime_string_from_system() + ": " + server.to_string() + " listening on " + str(hostname) + ":" + str(port) + " with id " + str(server.get_unique_id()))
+            print(Time.get_datetime_string_from_system() + ": " + server.to_string() + " listening on " + str(hostname) + ":" + str(port))
             server_ready = true
 
 func client_connect():
@@ -79,14 +82,14 @@ func client_disconnect():
         client_ready = false
 
 func _server_network_peer_connected(id):
-    print(Time.get_datetime_string_from_system() + ": Client connected with id " + str(id))
+    print(Time.get_datetime_string_from_system() + ": Client connected from " + server.get_peer_address(id) + " with id " + str(id))
 
 func _server_network_peer_disconnected(id):
     deregister_player(id)
-    print(Time.get_datetime_string_from_system() + ": Client disconnected with id " + str(id))
+    print(Time.get_datetime_string_from_system() + ": Client from " + server.get_peer_address(id) + " with id " + str(id) + " disconnected")
 
 func _client_connected_to_server():
-    dprint("" + client.to_string() + " connected to " + str(hostname) + " with network id " + str(client.get_unique_id()))
+    dprint("" + client.to_string() + " connected to " + str(hostname) + " with id " + str(client.get_unique_id()))
     client_ready = true
 
 func _client_server_disconnected():
@@ -101,7 +104,7 @@ func dprint(msg: String):
 
 func send_code(code: String):
     if client_ready:
-        rpc_id(1, "register_player", get_tree().get_network_unique_id(), code)
+        rpc_id(1, "register_player", client.get_unique_id(), code)
 
 remote func register_player(id: int, code: String) -> void:
     if !is_server:
@@ -112,12 +115,15 @@ remote func register_player(id: int, code: String) -> void:
             printerr(Time.get_datetime_string_from_system() + ": Player " + str(id) + " attempted to register with code " + code + " in a game that is already fully paired")
         elif pair.size() == 0:
             pairings[code] = [id]
+            rpc_id(id, "set_player_number", 0)
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in existing game")
         elif pair.size() == 1:
             pairings[code] = [pair[0], id]
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 2 in existing game")
             rpc_id(pair[0], "set_opponent_id", id)
             rpc_id(id, "set_opponent_id", pair[0])
+            rpc_id(pair[0], "set_player_number", 0)
+            rpc_id(id, "set_player_number", 1)
     else:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
@@ -131,11 +137,24 @@ func deregister_player(id: int) -> void:
             pairings.erase(code)
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
         elif pair.size() == 2 and (pair[0] == id or pair[1] == id):
+            if (pair[0] == id):
+                rpc_id(pair[1], "opponent_left", id)
+            if (pair[1] == id):
+                rpc_id(pair[0], "opponent_left", id)
             pairings.erase(code)
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
+    rpc_id(id, "set_player_number", -1)
 
 remote func set_opponent_id(id: int):
     opponent_id = id
+
+remote func set_player_number(num: int):
+    player_number = num
+
+remote func opponent_left(id: int):
+    if opponent_id == id:
+        emit_signal("opponent_left", id)
+        opponent_id = -1
 
 func _exit_tree() -> void:
     if is_server:
