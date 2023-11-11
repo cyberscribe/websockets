@@ -175,13 +175,12 @@ remote func pairing_complete():
     emit_signal("pairing_complete")
 
 func _exit_tree() -> void:
-    if is_server:
+    if is_server and server_ready:
         for peer in get_tree().get_network_connected_peers():
             server.disconnect_peer(peer, 1000, "Server shutting down")
         server.stop()
         server_ready = false
         pairings = {}
-    else:
-        client.disconnect_from_host(1000, "Client closing due to exit tree") 
-        client_ready = false
+    elif client_ready:
+        client_disconnect()
     get_tree().set_network_peer(null)
