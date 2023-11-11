@@ -78,6 +78,7 @@ func client_connect():
 
 func client_disconnect():
     if client_ready:
+        deregister_player(get_tree().get_network_unique_id())
         client.disconnect_from_host(1000, "Manually disconnected during game") 
         get_tree().set_network_peer(null)
         client_ready = false
