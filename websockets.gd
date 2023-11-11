@@ -25,7 +25,7 @@ func _init():
             debug = config.get_value("main", "debug", false)
             init = true
             return
-    printerr("Unable to read config file " + config_file)
+    printerr(Time.get_datetime_string_from_system() + ": Unable to read config file " + config_file)
 
 func _ready():
     if OS.get_name() == "HTML5":
@@ -82,6 +82,7 @@ func _server_network_peer_connected(id):
     print(Time.get_datetime_string_from_system() + ": Client connected with id " + str(id))
 
 func _server_network_peer_disconnected(id):
+    deregister_player(id)
     print(Time.get_datetime_string_from_system() + ": Client disconnected with id " + str(id))
 
 func _client_connected_to_server():
@@ -107,7 +108,9 @@ remote func register_player(id: int, code: String) -> void:
         return
     if pairings.has(code):
         var pair = pairings[code]
-        if pair.size() == 0:
+        if pair.size() > 1:
+            printerr(Time.get_datetime_string_from_system() + ": Player " + str(id) + " attempted to register with code " + code + " in a game that is already fully paired")
+        elif pair.size() == 0:
             pairings[code] = [id]
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in existing game")
         elif pair.size() == 1:
@@ -119,6 +122,18 @@ remote func register_player(id: int, code: String) -> void:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
 
+func deregister_player(id: int) -> void:
+    if !is_server:
+        return
+    for code in pairings.keys():
+        var pair = pairings[code]
+        if pair.size() == 1 and pair[0] == id:
+            pairings.erase(code)
+            print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
+        elif pair.size() == 2 and (pair[0] == id or pair[1] == id):
+            pairings.erase(code)
+            print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
+
 remote func set_opponent_id(id: int):
     opponent_id = id
 
@@ -126,8 +141,9 @@ func _exit_tree() -> void:
     if is_server:
         for peer in get_tree().get_network_connected_peers():
             server.disconnect_peer(peer, 1000, "Server shutting down")
-            server.stop()
+        server.stop()
         server_ready = false
+        pairings = {}
     else:
         client.disconnect_from_host(1000, "Client closing due to exit tree") 
         client_ready = false
