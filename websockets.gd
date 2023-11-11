@@ -113,7 +113,12 @@ remote func register_player(id: int, code: String) -> void:
     if pairings.has(code):
         var pair = pairings[code]
         if pair.size() > 1:
-            printerr(Time.get_datetime_string_from_system() + ": Player " + str(id) + " attempted to register with code " + code + " in a game that is already fully paired")
+            if pair[0] == id or pair[1] == id:
+                rpc_id(pair[0], "pairing_complete")
+                rpc_id(pair[1], "pairing_complete")
+                print(Time.get_datetime_string_from_system() + ": Re-paired " + str(pair[0]) + " and " + str(pair[1]) + " as player 1 and 2 respectively")
+            else:
+                printerr(Time.get_datetime_string_from_system() + ": Player " + str(id) + " attempted to register with code " + code + " in a game that is already fully paired")
         elif pair.size() == 0:
             pairings[code] = [id]
             if server.has_peer(id):
