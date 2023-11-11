@@ -90,7 +90,9 @@ func dprint(msg: String):
     if debug:
         print(msg)
 
-remotesync func register_player(id: int, code: String) -> void:
+remote func register_player(id: int, code: String) -> void:
+    if !is_server:
+        return
     if pairings.has(code):
         var pair = pairings[code]
         if pair.size == 0:
@@ -102,6 +104,11 @@ remotesync func register_player(id: int, code: String) -> void:
     else:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
+
+remote func get_opponent_id(id: int, code: String) -> int:
+    if !is_server:
+        return -1
+    return 0
 
 func _exit_tree() -> void:
     if is_server:
