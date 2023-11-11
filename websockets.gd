@@ -104,4 +104,10 @@ remotesync func register_player(id: int, code: String) -> void:
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
 
 func _exit_tree() -> void:
+    if is_server:
+        for peer in get_tree().get_network_connected_peers():
+            server.disconnect_peer(peer, 1000, "Server shutting down")
+            server.stop()
+    else:
+        client.disconnect_from_host(1000, "Client closing") 
     get_tree().set_network_peer(null)
