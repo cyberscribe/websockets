@@ -12,6 +12,8 @@ var client_ready: bool = false
 var pairings: Dictionary = {}
 var debug: bool = false
 
+var opponent_id: int = -1
+
 func _init():
     var config = ConfigFile.new()
     var status = config.load(config_file)
@@ -70,6 +72,12 @@ func client_connect():
         __ = get_tree().connect("connection_failed", self, "_client_connection_failed")
         __ = get_tree().connect("server_disconnected", self, "_client_server_disconnected")
 
+func client_disconnect():
+    if client_ready:
+        client.disconnect_from_host(1000, "Manually disconnected during game") 
+        get_tree().set_network_peer(null)
+        client_ready = false
+
 func _server_network_peer_connected(id):
     print(Time.get_datetime_string_from_system() + ": Client connected with id " + str(id))
 
@@ -90,31 +98,37 @@ func dprint(msg: String):
     if debug:
         print(msg)
 
+func send_code(code: String):
+    if client_ready:
+        rpc_id(1, "register_player", get_tree().get_network_unique_id(), code)
+
 remote func register_player(id: int, code: String) -> void:
     if !is_server:
         return
     if pairings.has(code):
         var pair = pairings[code]
-        if pair.size == 0:
+        if pair.size() == 0:
             pairings[code] = [id]
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in existing game")
-        elif pair.size == 1:
+        elif pair.size() == 1:
             pairings[code] = [pair[0], id]
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 2 in existing game")
+            rpc_id(pair[0], "set_opponent_id", id)
+            rpc_id(id, "set_opponent_id", pair[0])
     else:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
 
-remote func get_opponent_id(id: int, code: String) -> int:
-    if !is_server:
-        return -1
-    return 0
+remote func set_opponent_id(id: int):
+    opponent_id = id
 
 func _exit_tree() -> void:
     if is_server:
         for peer in get_tree().get_network_connected_peers():
             server.disconnect_peer(peer, 1000, "Server shutting down")
             server.stop()
+        server_ready = false
     else:
-        client.disconnect_from_host(1000, "Client closing") 
+        client.disconnect_from_host(1000, "Client closing due to exit tree") 
+        client_ready = false
     get_tree().set_network_peer(null)
