@@ -15,6 +15,7 @@ var client_ready: bool = false
 var pairings: Dictionary = {}
 var opponent_id: int = -1
 var player_number = -1
+signal pairing_complete
 signal opponent_left
 
 func _init():
@@ -115,15 +116,21 @@ remote func register_player(id: int, code: String) -> void:
             printerr(Time.get_datetime_string_from_system() + ": Player " + str(id) + " attempted to register with code " + code + " in a game that is already fully paired")
         elif pair.size() == 0:
             pairings[code] = [id]
-            rpc_id(id, "set_player_number", 0)
-            print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in existing game")
+            if server.has_peer(id):
+                rpc_id(id, "set_player_number", 0)
+                print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in existing game")
         elif pair.size() == 1:
             pairings[code] = [pair[0], id]
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 2 in existing game")
-            rpc_id(pair[0], "set_opponent_id", id)
-            rpc_id(id, "set_opponent_id", pair[0])
-            rpc_id(pair[0], "set_player_number", 0)
-            rpc_id(id, "set_player_number", 1)
+            if server.has_peer(pair[0]):
+                rpc_id(pair[0], "set_opponent_id", id)
+                rpc_id(pair[0], "set_player_number", 0)
+                rpc_id(pair[0], "pairing_complete")
+            if server.has_peer(id):
+                rpc_id(id, "set_opponent_id", pair[0])
+                rpc_id(id, "set_player_number", 1)
+                rpc_id(id, "pairing_complete")
+            print(Time.get_datetime_string_from_system() + ": Paired " + str(pair[0]) + " and " + str(id) + " as player 1 and 2 respectively")
     else:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
@@ -138,9 +145,11 @@ func deregister_player(id: int) -> void:
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
         elif pair.size() == 2 and (pair[0] == id or pair[1] == id):
             if (pair[0] == id):
-                rpc_id(pair[1], "opponent_left", id)
+                if server.has_peer(pair[1]):
+                    rpc_id(pair[1], "opponent_left", id)
             if (pair[1] == id):
-                rpc_id(pair[0], "opponent_left", id)
+                if server.has_peer(pair[0]):
+                    rpc_id(pair[0], "opponent_left", id)
             pairings.erase(code)
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
     rpc_id(id, "set_player_number", -1)
@@ -155,6 +164,9 @@ remote func opponent_left(id: int):
     if opponent_id == id:
         emit_signal("opponent_left", id)
         opponent_id = -1
+
+remote func pairing_complete():
+    emit_signal("pairing_complete")
 
 func _exit_tree() -> void:
     if is_server:
