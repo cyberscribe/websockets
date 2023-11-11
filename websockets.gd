@@ -50,7 +50,7 @@ func _process(__: float):
 func server_connect():
     var __
     server = WebSocketServer.new()
-    var status: int = server.listen(port, PoolStringArray(), true);
+    var status: int = server.listen(port, PoolStringArray(["wsserver-1.0"]), true);
     if status != OK:
         print(Time.get_datetime_string_from_system() + ": Unable to start at " + hostname + ":" + str(port))
     else:
@@ -66,7 +66,7 @@ func client_connect():
     var __
     client = WebSocketClient.new()
     var url = "ws://" + str(hostname) + ":" + str(port)
-    var state: int = client.connect_to_url(url, PoolStringArray(), true);
+    var state: int = client.connect_to_url(url, PoolStringArray(["wsserver-1.0"]), true);
     if state != OK:
         dprint("Error connecting to server")
     else:
