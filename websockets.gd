@@ -21,8 +21,10 @@ var key: CryptoKey = CryptoKey.new()
 var pairings: Dictionary = {}
 var opponent_id: int = -1
 var player_number = -1
+
 signal pairing_complete
 signal opponent_left
+signal invalid_code
 
 func _init():
     var config = ConfigFile.new()
@@ -129,11 +131,17 @@ func dprint(msg: String):
     if debug:
         print(msg)
 
-func send_code(code: String):
+func send_code(code: String, existing: bool = false):
     if client_ready:
-        rpc_id(1, "register_player", client.get_unique_id(), code)
+        if existing:
+            rpc_id(1, "join_existing", client.get_unique_id(), code)
+        else:
+            rpc_id(1, "register_player", client.get_unique_id(), code)
 
 remote func register_player(id: int, code: String) -> void:
+        server_register_player(id, code)
+
+func server_register_player(id: int, code: String) -> void:
     if !is_server:
         return
     if pairings.has(code):
@@ -165,6 +173,17 @@ remote func register_player(id: int, code: String) -> void:
     else:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
+
+remote func join_existing(id: int, code: String) -> void:
+    if !is_server:
+        return
+    if pairings.has(code):
+        server_register_player(id, code)
+    else:
+        rpc_id(id, "invalid_code")
+
+remote func invalid_code() -> void:
+    emit_signal("invalid_code")
 
 func client_deregister_player() -> void:
     rpc_id(1, "server_deregister_player", get_tree().get_network_unique_id())
