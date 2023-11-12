@@ -166,6 +166,13 @@ remote func register_player(id: int, code: String) -> void:
         pairings[code] = [id]
         print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " registered with code " + code + " as player 1 in new game")
 
+func client_deregister_player() -> void:
+    rpc_id(1, "server_deregister_player", get_tree().get_network_unique_id())
+
+remote func server_deregister_player(id: int) -> void:
+    if is_server and server.has_peer(id):
+        deregister_player(id)
+
 func deregister_player(id: int) -> void:
     if !is_server:
         return
