@@ -59,9 +59,10 @@ func _process(__: float):
 func server_connect():
     var __
     server = WebSocketServer.new()
-    key.load(key_path)
-    server.private_key = key
-    server.ssl_certificate = cert
+    if hostname != "localhost":
+        key.load(key_path)
+        server.private_key = key
+        server.ssl_certificate = cert
     var status: int = server.listen(port, PoolStringArray(["wsserver-1.0"]), true);
     if status != OK:
         print(Time.get_datetime_string_from_system() + ": Unable to start at " + hostname + ":" + str(port))
@@ -77,11 +78,14 @@ func server_connect():
 func client_connect():
     if !client_ready:
         var __
+        var prefix = "ws://"
         client = WebSocketClient.new()
-        client.trusted_ssl_certificate = cert
-        if hostname == "localhost":
+        if hostname != "localhost":
+            client.trusted_ssl_certificate = cert
+            prefix = "wss://"
+        if OS.get_name() != "HTML5":
             client.verify_ssl = false
-        var url = "wss://" + str(hostname) + ":" + str(port)
+        var url = prefix + str(hostname) + ":" + str(port)
         var state: int = client.connect_to_url(url, PoolStringArray(["wsserver-1.0"]), true);
         if state != OK:
             dprint("Error connecting to server")
