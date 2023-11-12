@@ -82,6 +82,8 @@ func client_disconnect():
         deregister_player(get_tree().get_network_unique_id())
         client.disconnect_from_host(1000, "Manually disconnected during game") 
         get_tree().set_network_peer(null)
+        opponent_id = -1
+        player_number = -1
         client_ready = false
 
 func _server_network_peer_connected(id):
@@ -161,9 +163,6 @@ func deregister_player(id: int) -> void:
                     rpc_id(pair[0], "opponent_left", id)
             pairings.erase(code)
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
-    if server.has_peer(id):
-        rpc_id(id, "set_player_number", -1)
-        rpc_id(id, "set_opponent", -1)
 
 remote func set_opponent_id(id: int):
     opponent_id = id
