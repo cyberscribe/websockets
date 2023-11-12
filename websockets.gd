@@ -92,11 +92,14 @@ func client_connect():
         if state != OK:
             dprint("Error connecting to server")
         else:
-            __ = get_tree().connect("connected_to_server", self, "_client_connected_to_server")
-            __ = get_tree().connect("connection_failed", self, "_client_connection_failed")
-            __ = get_tree().connect("server_disconnected", self, "_client_server_disconnected")
             get_tree().set_network_peer(client)
             get_tree().set_meta("network_peer", client)
+            if !get_tree().is_connected("connected_to_server", self, "_client_connected_to_server"):
+                __ = get_tree().connect("connected_to_server", self, "_client_connected_to_server")
+            if !get_tree().is_connected("connection_failed", self, "_client_connection_failed"):
+                __ = get_tree().connect("connection_failed", self, "_client_connection_failed")
+            if !get_tree().is_connected("server_disconnected", self, "_client_server_disconnected"):
+                __ = get_tree().connect("server_disconnected", self, "_client_server_disconnected")
             client_ready = true
 
 func client_disconnect():
