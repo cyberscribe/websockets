@@ -12,6 +12,12 @@ var server: WebSocketServer
 var server_ready: bool = false
 var client_ready: bool = false
 
+var cert_path: String = "res://addons/websockets/wsserver.crt"
+var key_path: String = "res://addons/websockets/wsserver.key"
+
+var cert: X509Certificate = X509Certificate.new()
+var key: CryptoKey = CryptoKey.new()
+
 var pairings: Dictionary = {}
 var opponent_id: int = -1
 var player_number = -1
@@ -27,6 +33,9 @@ func _init():
             port = config.get_value("main", "port", 25565)
             is_server = config.get_value("main", "is_server", true)
             debug = config.get_value("main", "debug", false)
+            cert_path = config.get_value("main", "cert_path", "res://addons/websockets/wsserver.crt")
+            key_path = config.get_value("main", "key_path", "res://addons/websockets/wsserver.key")
+            cert.load(cert_path)
             init = true
             return
     printerr(Time.get_datetime_string_from_system() + ": Unable to read config file " + config_file)
@@ -50,6 +59,9 @@ func _process(__: float):
 func server_connect():
     var __
     server = WebSocketServer.new()
+    key.load(key_path)
+    server.private_key = key
+    server.ssl_certificate = cert
     var status: int = server.listen(port, PoolStringArray(["wsserver-1.0"]), true);
     if status != OK:
         print(Time.get_datetime_string_from_system() + ": Unable to start at " + hostname + ":" + str(port))
@@ -66,7 +78,8 @@ func client_connect():
     if !client_ready:
         var __
         client = WebSocketClient.new()
-        var url = "ws://" + str(hostname) + ":" + str(port)
+        client.trusted_ssl_certificate = cert
+        var url = "wss://" + str(hostname) + ":" + str(port)
         var state: int = client.connect_to_url(url, PoolStringArray(["wsserver-1.0"]), true);
         if state != OK:
             dprint("Error connecting to server")
