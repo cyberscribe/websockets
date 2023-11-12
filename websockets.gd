@@ -34,9 +34,9 @@ func _init():
 func _ready():
     if OS.get_name() == "HTML5":
         is_server = false
-    if is_server:
+    if is_server and !server_ready:
         server_connect()
-    else:
+    elif !client_ready:
         client_connect()
         
 func _process(__: float):
@@ -71,11 +71,12 @@ func client_connect():
         if state != OK:
             dprint("Error connecting to server")
         else:
-            get_tree().set_network_peer(client)
-            get_tree().set_meta("network_peer", client)
             __ = get_tree().connect("connected_to_server", self, "_client_connected_to_server")
             __ = get_tree().connect("connection_failed", self, "_client_connection_failed")
             __ = get_tree().connect("server_disconnected", self, "_client_server_disconnected")
+            get_tree().set_network_peer(client)
+            get_tree().set_meta("network_peer", client)
+            client_ready = true
 
 func client_disconnect():
     if client_ready:
