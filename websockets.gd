@@ -63,18 +63,19 @@ func server_connect():
             server_ready = true
 
 func client_connect():
-    var __
-    client = WebSocketClient.new()
-    var url = "ws://" + str(hostname) + ":" + str(port)
-    var state: int = client.connect_to_url(url, PoolStringArray(["wsserver-1.0"]), true);
-    if state != OK:
-        dprint("Error connecting to server")
-    else:
-        get_tree().set_network_peer(client)
-        get_tree().set_meta("network_peer", client)
-        __ = get_tree().connect("connected_to_server", self, "_client_connected_to_server")
-        __ = get_tree().connect("connection_failed", self, "_client_connection_failed")
-        __ = get_tree().connect("server_disconnected", self, "_client_server_disconnected")
+    if !client_ready:
+        var __
+        client = WebSocketClient.new()
+        var url = "ws://" + str(hostname) + ":" + str(port)
+        var state: int = client.connect_to_url(url, PoolStringArray(["wsserver-1.0"]), true);
+        if state != OK:
+            dprint("Error connecting to server")
+        else:
+            get_tree().set_network_peer(client)
+            get_tree().set_meta("network_peer", client)
+            __ = get_tree().connect("connected_to_server", self, "_client_connected_to_server")
+            __ = get_tree().connect("connection_failed", self, "_client_connection_failed")
+            __ = get_tree().connect("server_disconnected", self, "_client_server_disconnected")
 
 func client_disconnect():
     if client_ready:
@@ -88,7 +89,7 @@ func _server_network_peer_connected(id):
 
 func _server_network_peer_disconnected(id):
     deregister_player(id)
-    print(Time.get_datetime_string_from_system() + ": Client from " + server.get_peer_address(id) + " with id " + str(id) + " disconnected")
+    print(Time.get_datetime_string_from_system() + ": Client with id " + str(id) + " disconnected")
 
 func _client_connected_to_server():
     dprint("" + client.to_string() + " connected to " + str(hostname) + " with id " + str(client.get_unique_id()))
@@ -96,9 +97,11 @@ func _client_connected_to_server():
 
 func _client_server_disconnected():
     dprint("" + client.to_string() + " disconnected from " + str(hostname))
+    client_ready = false
 
 func _client_connection_failed():
     dprint("unable to connect to server " + str(hostname))
+    client_ready = false
 
 func dprint(msg: String):
     if debug:
@@ -158,7 +161,9 @@ func deregister_player(id: int) -> void:
                     rpc_id(pair[0], "opponent_left", id)
             pairings.erase(code)
             print(Time.get_datetime_string_from_system() + ": Player " + str(id) + " deregistered with code " + code)
-    rpc_id(id, "set_player_number", -1)
+    if server.has_peer(id):
+        rpc_id(id, "set_player_number", -1)
+        rpc_id(id, "set_opponent", -1)
 
 remote func set_opponent_id(id: int):
     opponent_id = id
