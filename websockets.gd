@@ -79,6 +79,8 @@ func client_connect():
         var __
         client = WebSocketClient.new()
         client.trusted_ssl_certificate = cert
+        if hostname == "localhost":
+            client.verify_ssl = false
         var url = "wss://" + str(hostname) + ":" + str(port)
         var state: int = client.connect_to_url(url, PoolStringArray(["wsserver-1.0"]), true);
         if state != OK:
