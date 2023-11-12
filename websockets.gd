@@ -2,7 +2,7 @@ extends Node
 
 var debug: bool = false
 
-var config_file: String = "res://addons/websockets/config.cfg"
+var config_file: String = "res://addons/websockets/config.ini"
 var init: bool = false
 var hostname: String = "localhost"
 var port: int = 25565
